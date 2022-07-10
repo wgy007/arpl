@@ -53,7 +53,7 @@ builds:
     synoinfo:
       <<: *synoinfo
     pat:
-      url: "https://global.download.synology.com/download/DSM/release/7.0.1/42218/DSM_DS2422%2B_42218.pat"
+      url: "https://cndl.synology.cn/download/DSM/release/7.0.1/42218/DSM_DS2422%2B_42218.pat"
       hash: "415c54934d483a2557500bc3a2e74588a0cec1266e1f0d9a82a7d3aace002471"
       ramdisk-hash: "2b5b8dd90b2e6020ffccc2719d8bc16d9935421754a8c088d6b31dbca4e4ff7b"
       zimage-hash: "38281a90036fffcb41cd17f05a6c7e9a1d5740a78c135980fb0c3a6d0ca1485f"
