@@ -9,12 +9,13 @@ loaderIsConfigured || die "Loader is not configured!"
 
 # Print text centralized, if variable ${COLUMNS} is defined
 clear
+TITLE="Welcome to Automated Redpill Loader v${ARPL_VERSION}"
+printf "\033[1;44m%*s\n" $COLUMNS ""
+printf "\033[1;44m%*s\033[A\n" $COLUMNS ""
+printf "\033[1;32m%*s\033[0m\n" $(((${#TITLE}+$COLUMNS)/2)) "${TITLE}"
+printf "\033[1;44m%*s\033[0m\n" $COLUMNS ""
 TITLE="BOOTING..."
-if [ -z "${COLUMNS}" ]; then
-  echo -e "\033[1;33m${TITLE}\033[0m"
-else
-  printf "\033[1;33m%*s\033[0m\n" $(((${#TITLE}+${COLUMNS})/2)) "${TITLE}"
-fi
+printf "\033[1;33m%*s\033[0m\n" $(((${#TITLE}+${COLUMNS})/2)) "${TITLE}"
 
 # Check if DSM zImage changed, patch it if necessary
 ZIMAGE_HASH="`readConfigKey "zimage-hash" "${USER_CONFIG_FILE}"`"
@@ -75,13 +76,15 @@ EFI_BUG="`readModelKey "${MODEL}" "builds.${BUILD}.efi-bug"`"
 LOADER_DISK="`blkid | grep 'LABEL="ARPL3"' | cut -d3 -f1`"
 BUS=`udevadm info --query property --name ${LOADER_DISK} | grep ID_BUS | cut -d= -f2`
 if [ "${BUS}" = "ata" ]; then
-  SIZE=$((`df -BM | awk '/\/mnt\/p3/{print$2}' | tr 'M' ' '`+300))
+  LOADER_DEVICE_NAME=`echo ${LOADER_DISK} | sed 's|/dev/||'`
+  SIZE=$((`cat /sys/block/${LOADER_DEVICE_NAME}/size`/2048+10))
   # Read SATADoM type
   DOM="`readModelKey "${MODEL}" "dom"`"
 fi
 
 # Prepare command line
 CMDLINE_LINE=""
+grep -q "force_junior" /proc/cmdline && CMDLINE_LINE+="force_junior "
 [ ${EFI} -eq 1 ] && CMDLINE_LINE+="withefi "
 [ "${BUS}" = "ata" ] && CMDLINE_LINE+="synoboot_satadom=${DOM} dom_szmax=${SIZE} "
 CMDLINE_LINE+="console=ttyS0,115200n8 earlyprintk log_buf_len=32M earlycon=uart8250,io,0x3f8,115200n8 elevator=elevator root=/dev/md0 loglevel=15"
@@ -100,18 +103,19 @@ echo -e "Cmdline:\n\033[1;36m${CMDLINE_LINE}\033[0m"
 
 # Wait for an IP
 COUNT=0
-echo -n "IP: "
+echo -n "IP"
 while true; do
   IP=`ip route get 1.1.1.1 2>/dev/null | awk '{print$7}'`
   if [ -n "${IP}" ]; then
-    echo -e "\033[1;32m${IP}\033[0m"
+    echo -e ": \033[1;32m${IP}\033[0m"
     break
-  elif [ ${COUNT} -eq 8 ]; then
-    echo -e "\033[1;31mERROR\033[0m"
+  elif [ ${COUNT} -eq 15 ]; then
+    echo -e ": \033[1;31mERROR\033[0m"
     break
   fi
   COUNT=$((${COUNT}+1))
   sleep 1
+  echo -n "."
 done
 
 echo -e "\033[1;37mLoading DSM kernel...\033[0m"

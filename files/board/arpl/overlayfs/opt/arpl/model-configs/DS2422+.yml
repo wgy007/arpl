@@ -1,17 +1,4 @@
 id: "DS2422+"
-modules-notneeded: &modules-notneeded
-  - ahci
-  - ata_piix
-  - amd_xgbe
-  - marvell10g
-  - i40e
-  - r8168
-  - ixgbe
-  - etxhci_hcd
-  - xhci_hcd
-  - ehci-pci
-  - uhci_hcd
-  - mv14xx
 synoinfo: &synoinfo
   support_disk_compatibility: "no"
   support_memory_compatibility: "no"
@@ -24,6 +11,8 @@ synoinfo: &synoinfo
   updateurl: "http://example.com/"
   myds_region_api_base_url: "https://example.com"
   security_version_server: "https://example.com/smallupdate"
+  supportraidgroup: "no"
+  supportssdcache: "no"
 cmdline: &cmdline
   SMBusHddDynamicPower: 1
   vender_format_version: 2
@@ -47,7 +36,6 @@ builds:
     kver: "4.4.180"
     rd-compressed: false
     efi-bug: no
-    modules-notneeded: *modules-notneeded
     cmdline:
       <<: *cmdline
     synoinfo:
@@ -60,7 +48,22 @@ builds:
     patch:
       - "ramdisk-common-disable-root-pwd.patch"
       - "ramdisk-common-init-script.patch"
-      - "ramdisk-common-rc.patch"
       - "ramdisk-common-post-init-script.patch"
-      - "ramdisk-common-network-hosts.patch"
-      - "ramdisk-common-disable-disabled-ports.patch"
+  42661:
+    ver: "7.1.0"
+    kver: "4.4.180"
+    rd-compressed: false
+    efi-bug: no
+    cmdline:
+      <<: *cmdline
+    synoinfo:
+      <<: *synoinfo
+    pat:
+      url: "https://global.download.synology.com/download/DSM/release/7.1/42661-1/DSM_DS2422%2B_42661.pat"
+      hash: "c38fee0470c592b679ab52a64eac76b2a3912fb2e6aba65a65abb5aa05a98d4c"
+      ramdisk-hash: "bb109132e96b1e26d5e3d44557944f7518168d8cb18e35d6254c0dfe7fb19382"
+      zimage-hash: "d939b5937be00a644aae64c33633619a7c310433e60a515c77bbef00b0a7e6b6"
+    patch:
+      - "ramdisk-common-disable-root-pwd.patch"
+      - "ramdisk-common-init-script.patch"
+      - "ramdisk-42661-post-init-script.patch"

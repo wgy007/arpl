@@ -34,7 +34,6 @@ mount ${LOADER_DISK}1 ${BOOTLOADER_PATH} || die "Can't mount ${BOOTLOADER_PATH}"
 mount ${LOADER_DISK}2 ${SLPART_PATH}     || die "Can't mount ${SLPART_PATH}"
 mount ${LOADER_DISK}3 ${CACHE_PATH}      || die "Can't mount ${CACHE_PATH}"
 
-mkdir -p "${ADDONS_PATH}"
 # Move/link SSH machine keys to/from cache volume
 [ ! -d "${CACHE_PATH}/ssh" ] && cp -R "/etc/ssh" "${CACHE_PATH}/ssh"
 rm -rf "/etc/ssh"
@@ -50,12 +49,21 @@ if [ ! -f "${USER_CONFIG_FILE}" ]; then
   writeConfigKey "model" "" "${USER_CONFIG_FILE}"
   writeConfigKey "build" "" "${USER_CONFIG_FILE}"
   writeConfigKey "sn" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "maxdisks" "" "${USER_CONFIG_FILE}"
   writeConfigKey "keymap" "" "${USER_CONFIG_FILE}"
   writeConfigKey "zimage-hash" "" "${USER_CONFIG_FILE}"
   writeConfigKey "ramdisk-hash" "" "${USER_CONFIG_FILE}"
   writeConfigKey "cmdline" "{}" "${USER_CONFIG_FILE}"
   writeConfigKey "synoinfo" "{}" "${USER_CONFIG_FILE}"
   writeConfigKey "addons" "{}" "${USER_CONFIG_FILE}"
+fi
+
+# Set custom MAC if defined
+MAC1=`readConfigKey "cmdline.mac1" "${USER_CONFIG_FILE}"`
+if [ -n "${MAC1}" ]; then
+  MAC="${MAC1:0:2}:${MAC1:2:2}:${MAC1:4:2}:${MAC1:6:2}:${MAC1:8:2}:${MAC1:10:2}"
+  ip link set dev eth0 address ${MAC} >/dev/null 2>&1 && \
+    (/etc/init.d/S41dhcpcd restart >/dev/null 2>&1 &) || true
 fi
 
 # Get the VID/PID if we are in USB
@@ -147,3 +155,7 @@ echo
 echo -e "User config is on \033[1;32m${USER_CONFIG_FILE}\033[0m"
 echo -e "Default SSH Root password is \033[1;31mRedp1lL-1s-4weSomE\033[0m"
 echo
+
+mkdir -p "${ADDONS_PATH}"
+mkdir -p "${LKM_PATH}"
+mkdir -p "${MODULES_PATH}"

@@ -44,10 +44,7 @@ RD_COMPRESSED="`readModelKey "${MODEL}" "builds.${BUILD}.rd-compressed"`"
 declare -A SYNOINFO
 declare -A ADDONS
 
-# Read more config
-while IFS="=" read KEY VALUE; do
-  [ -n "${KEY}" ] && SYNOINFO["${KEY}"]="${VALUE}"
-done < <(readModelMap "${MODEL}" "builds.${BUILD}.synoinfo")
+# Read synoinfo and addons from config
 while IFS="=" read KEY VALUE; do
   [ -n "${KEY}" ] &&  SYNOINFO["${KEY}"]="${VALUE}"
 done < <(readConfigMap "synoinfo" "${USER_CONFIG_FILE}")
@@ -81,28 +78,48 @@ done
 sed -e "/@@@CONFIG-GENERATED@@@/ {" -e "r ${TMP_PATH}/rp.txt" -e 'd' -e '}' -i "${RAMDISK_PATH}/sbin/init.post"
 rm "${TMP_PATH}/rp.txt"
 
-# Copying LKM to /usr/lib/modules/rp.ko
 echo -n "."
+# Extract modules to ramdisk
+rm -rf "${TMP_PATH}/modules"
+mkdir -p "${TMP_PATH}/modules"
+gzip -dc "${CACHE_PATH}/modules/${PLATFORM}-${KVER}.tgz" | tar xf - -C "${TMP_PATH}/modules"
+for F in `ls "${TMP_PATH}/modules/"*.ko`; do
+  M=`basename ${F}`
+  # Skip existent modules
+#  [ -f "${RAMDISK_PATH}/usr/lib/modules/${M}" ] || mv "${F}" "${RAMDISK_PATH}/usr/lib/modules/${M}"
+  cp "${F}" "${RAMDISK_PATH}/usr/lib/modules/${M}"
+done
+mkdir -p "${RAMDISK_PATH}/usr/lib/firmware"
+gzip -dc "${CACHE_PATH}/modules/firmware.tgz" | tar xf - -C "${RAMDISK_PATH}/usr/lib/firmware"
+# Clean
+rm -rf "${TMP_PATH}/modules"
+
+echo -n "."
+# Copying fake modprobe
+cp "${PATCH_PATH}/iosched-trampoline.sh" "${RAMDISK_PATH}/usr/sbin/modprobe"
+# Copying LKM to /usr/lib/modules
 cp "${LKM_PATH}/rp-${PLATFORM}-${KVER}-${LKM}.ko" "${RAMDISK_PATH}/usr/lib/modules/rp.ko"
 
-# Copying fake modprobe
-echo -n "."
-cp "${PATCH_PATH}/iosched-trampoline.sh" "${RAMDISK_PATH}/usr/sbin/modprobe"
-
 # Addons
+MAXDISKS=`readConfigKey "maxdisks" "${USER_CONFIG_FILE}"`
 # Check if model needs Device-tree dynamic patch
 DT="`readModelKey "${MODEL}" "dt"`"
-# Add system addon "dtbpatch" or "maxdisks"
-[ "${DT}" = "true" ] && ADDONS['dtbpatch']="" || ADDONS['maxdisks']=""
-ADDONS['misc']=""  # Add system addon "misc"
-ADDONS['acpid']=""  # Add system addon "acpid"
 
-mkdir -p "${RAMDISK_PATH}/addons"
 echo -n "."
-#/proc/sys/kernel/syno_install_flag
+mkdir -p "${RAMDISK_PATH}/addons"
 echo "#!/bin/sh" > "${RAMDISK_PATH}/addons/addons.sh"
-echo 'export INSMOD="/sbin/insmod"' >> "${RAMDISK_PATH}/addons/addons.sh"
 echo 'echo "addons.sh called with params ${@}"' >> "${RAMDISK_PATH}/addons/addons.sh"
+# Required eudev and dtbpatch/maxdisks
+installAddon eudev
+echo "/addons/eudev.sh \${1} " >> "${RAMDISK_PATH}/addons/addons.sh" 2>"${LOG_FILE}" || dieLog
+if [ "${DT}" = "true" ]; then
+  installAddon dtbpatch
+  echo "/addons/dtbpatch.sh \${1} " >> "${RAMDISK_PATH}/addons/addons.sh" 2>"${LOG_FILE}" || dieLog
+else
+  installAddon maxdisks
+  echo "/addons/maxdisks.sh \${1} ${MAXDISKS}" >> "${RAMDISK_PATH}/addons/addons.sh" 2>"${LOG_FILE}" || dieLog
+fi
+# User addons
 for ADDON in ${!ADDONS[@]}; do
   PARAMS=${ADDONS[${ADDON}]}
   if ! installAddon ${ADDON}; then
@@ -112,6 +129,9 @@ for ADDON in ${!ADDONS[@]}; do
   echo "/addons/${ADDON}.sh \${1} ${PARAMS}" >> "${RAMDISK_PATH}/addons/addons.sh" 2>"${LOG_FILE}" || dieLog
 done
 chmod +x "${RAMDISK_PATH}/addons/addons.sh"
+
+# Build modules dependencies
+/opt/arpl/depmod -a -b ${RAMDISK_PATH} 2>/dev/null
 
 # Reassembly ramdisk
 echo -n "."
