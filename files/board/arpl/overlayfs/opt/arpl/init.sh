@@ -56,6 +56,8 @@ if [ ! -f "${USER_CONFIG_FILE}" ]; then
   writeConfigKey "cmdline" "{}" "${USER_CONFIG_FILE}"
   writeConfigKey "synoinfo" "{}" "${USER_CONFIG_FILE}"
   writeConfigKey "addons" "{}" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.misc" "" "${USER_CONFIG_FILE}"
+  writeConfigKey "addons.acpid" "" "${USER_CONFIG_FILE}"
 fi
 
 # Set custom MAC if defined
@@ -159,3 +161,13 @@ echo
 mkdir -p "${ADDONS_PATH}"
 mkdir -p "${LKM_PATH}"
 mkdir -p "${MODULES_PATH}"
+
+# Detect if has new local plugins to install/reinstall
+for F in `ls ${CACHE_PATH}/*.addon 2>/dev/null`; do
+  ADDON=`basename "${F}" | sed 's|.addon||'`
+  rm -rf "${ADDONS_PATH}/${ADDON}"
+  mkdir -p "${ADDONS_PATH}/${ADDON}"
+  echo "Installing ${F} to ${ADDONS_PATH}/${ADDON}"
+  tar xaf "${F}" -C "${ADDONS_PATH}/${ADDON}"
+  rm -f "${F}"
+done
